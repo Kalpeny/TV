@@ -11,6 +11,8 @@ import com.fongmi.android.tv.Setting;
 import com.fongmi.android.tv.databinding.ActivitySettingCustomBinding;
 import com.fongmi.android.tv.event.RefreshEvent;
 import com.fongmi.android.tv.ui.base.BaseActivity;
+import com.fongmi.android.tv.ui.dialog.ButtonsDialog;
+import com.fongmi.android.tv.ui.dialog.DisplayDialog;
 import com.fongmi.android.tv.utils.ResUtil;
 
 import java.util.Locale;
@@ -23,6 +25,8 @@ public class SettingCustomActivity extends BaseActivity {
     private String[] episode;
     private String[] fullscreenMenuKey;
     private String[] smallWindowBackKey;
+    private String[] homeMenuKey;
+    private String[] homeUI;
 
     @Override
     protected ViewBinding getBinding() {
@@ -43,15 +47,15 @@ public class SettingCustomActivity extends BaseActivity {
         mBinding.qualityText.setText((quality = ResUtil.getStringArray(R.array.select_quality))[Setting.getQuality()]);
         mBinding.sizeText.setText((size = ResUtil.getStringArray(R.array.select_size))[Setting.getSize()]);
         mBinding.episodeText.setText((episode = ResUtil.getStringArray(R.array.select_episode))[Setting.getEpisode()]);
-        mBinding.displayTimeText.setText(getSwitch(Setting.isDisplayTime()));
-        mBinding.displayNetspeedText.setText(getSwitch(Setting.isDisplaySpeed()));
-        mBinding.displayDurationText.setText(getSwitch(Setting.isDisplayDuration()));
-        mBinding.displayMiniProgressText.setText(getSwitch(Setting.isDisplayMiniProgress()));
         mBinding.speedText.setText(getSpeedText());
         mBinding.fullscreenMenuKeyText.setText((fullscreenMenuKey = ResUtil.getStringArray(R.array.select_fullscreen_menu_key))[Setting.getFullscreenMenuKey()]);
         mBinding.homeSiteLockText.setText(getSwitch(Setting.isHomeSiteLock()));
         mBinding.incognitoText.setText(getSwitch(Setting.isIncognito()));
         mBinding.smallWindowBackKeyText.setText((smallWindowBackKey = ResUtil.getStringArray(R.array.select_small_window_back_key))[Setting.getSmallWindowBackKey()]);
+        mBinding.homeMenuKeyText.setText((homeMenuKey = ResUtil.getStringArray(R.array.select_home_menu_key))[Setting.getHomeMenuKey()]);
+        mBinding.aggregatedSearchText.setText(getSwitch(Setting.isAggregatedSearch()));
+        mBinding.homeUIText.setText((homeUI = ResUtil.getStringArray(R.array.select_home_ui))[Setting.getHomeUI()]);
+        mBinding.homeHistoryText.setText(getSwitch(Setting.isHomeHistory()));
     }
 
     @Override
@@ -59,16 +63,18 @@ public class SettingCustomActivity extends BaseActivity {
         mBinding.quality.setOnClickListener(this::setQuality);
         mBinding.size.setOnClickListener(this::setSize);
         mBinding.episode.setOnClickListener(this::setEpisode);
-        mBinding.displayTime.setOnClickListener(this::setDisplayTime);
-        mBinding.displayNetspeed.setOnClickListener(this::setDisplaySpeed);
-        mBinding.displayDuration.setOnClickListener(this::setDisplayDuration);
-        mBinding.displayMiniProgress.setOnClickListener(this::setDisplayMiniProgress);
+        mBinding.display.setOnClickListener(this::onDisplay);
         mBinding.speed.setOnClickListener(this::setSpeed);
         mBinding.speed.setOnLongClickListener(this::resetSpeed);
         mBinding.fullscreenMenuKey.setOnClickListener(this::setFullscreenMenuKey);
         mBinding.homeSiteLock.setOnClickListener(this::setHomeSiteLock);
         mBinding.incognito.setOnClickListener(this::setIncognito);
         mBinding.smallWindowBackKey.setOnClickListener(this::setSmallWindowBackKey);
+        mBinding.homeMenuKey.setOnClickListener(this::setHomeMenuKey);
+        mBinding.aggregatedSearch.setOnClickListener(this::setAggregatedSearch);
+        mBinding.homeUI.setOnClickListener(this::setHomeUI);
+        mBinding.homeButtons.setOnClickListener(this::onHomeButtons);
+        mBinding.homeHistory.setOnClickListener(this::setHomeHistory);
     }
 
     private void setQuality(View view) {
@@ -91,24 +97,8 @@ public class SettingCustomActivity extends BaseActivity {
         mBinding.episodeText.setText(episode[index]);
     }
 
-    private void setDisplayTime(View view) {
-        Setting.putDisplayTime(!Setting.isDisplayTime());
-        mBinding.displayTimeText.setText(getSwitch(Setting.isDisplayTime()));
-    }
-
-    private void setDisplaySpeed(View view) {
-        Setting.putDisplaySpeed(!Setting.isDisplaySpeed());
-        mBinding.displayNetspeedText.setText(getSwitch(Setting.isDisplaySpeed()));
-    }
-
-    private void setDisplayDuration(View view) {
-        Setting.putDisplayDuration(!Setting.isDisplayDuration());
-        mBinding.displayDurationText.setText(getSwitch(Setting.isDisplayDuration()));
-    }
-
-    private void setDisplayMiniProgress(View view) {
-        Setting.putDisplayMiniProgress(!Setting.isDisplayMiniProgress());
-        mBinding.displayMiniProgressText.setText(getSwitch(Setting.isDisplayMiniProgress()));
+    private void onDisplay(View view) {
+        DisplayDialog.create(this).show();
     }
 
     private String getSpeedText() {
@@ -149,6 +139,32 @@ public class SettingCustomActivity extends BaseActivity {
         int index = Setting.getSmallWindowBackKey();
         Setting.putSmallWindowBackKey(index = index == smallWindowBackKey.length - 1 ? 0 : ++index);
         mBinding.smallWindowBackKeyText.setText(smallWindowBackKey[index]);
+    }
+
+    private void setHomeMenuKey(View view) {
+        int index = Setting.getHomeMenuKey();
+        Setting.putHomeMenuKey(index = index == homeMenuKey.length - 1 ? 0 : ++index);
+        mBinding.homeMenuKeyText.setText(homeMenuKey[index]);
+    }
+
+    private void setAggregatedSearch(View view) {
+        Setting.putAggregatedSearch(!Setting.isAggregatedSearch());
+        mBinding.aggregatedSearchText.setText(getSwitch(Setting.isAggregatedSearch()));
+    }
+
+    private void setHomeUI(View view) {
+        int index = Setting.getHomeUI();
+        Setting.putHomeUI(index = index == homeUI.length - 1 ? 0 : ++index);
+        mBinding.homeUIText.setText(homeUI[index]);
+    }
+
+    private void onHomeButtons(View view) {
+        ButtonsDialog.create(this).show();
+    }
+
+    private void setHomeHistory(View view) {
+        Setting.putHomeHistory(!Setting.isHomeHistory());
+        mBinding.homeHistoryText.setText(getSwitch(Setting.isHomeHistory()));
     }
 
 }

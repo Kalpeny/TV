@@ -389,6 +389,14 @@ public class Setting {
         return Prefers.getInt("fullscreen_menu_key", 0);
     }
 
+    public static void putHomeMenuKey(int key) {
+        Prefers.put("home_menu_key", key);
+    }
+
+    public static int getHomeMenuKey() {
+        return Prefers.getInt("home_menu_key", 0);
+    }
+
     public static boolean isHomeSiteLock() {
         return Prefers.getBoolean("home_site_lock", false);
     }
@@ -411,6 +419,62 @@ public class Setting {
 
     public static int getSmallWindowBackKey() {
         return Prefers.getInt("small_window_back_key", 0);
+    }
+
+    public static void putHomeChangeConfig(boolean change) {
+        Prefers.put("home_change_config", change);
+    }
+
+    public static boolean isHomeChangeConfig() {
+        return Prefers.getBoolean("home_change_config", false);
+    }
+
+    public static boolean isAggregatedSearch() {
+        return Prefers.getBoolean("aggregated_search", false);
+    }
+
+    public static void putAggregatedSearch(boolean search) {
+        Prefers.put("aggregated_search", search);
+    }
+
+    public static void putHomeUI(int key) {
+        Prefers.put("home_ui", key);
+    }
+
+    public static int getHomeUI() {
+        return Prefers.getInt("home_ui", 0);
+    }
+
+    public static void putHomeButtons(String buttons) {
+        Prefers.put("home_buttons", buttons);
+    }
+
+    public static String getHomeButtons(String defaultValue) {
+        return Prefers.getString("home_buttons", defaultValue);
+    }
+
+    public static void putHomeButtonsSorted(String buttons) {
+        Prefers.put("home_buttons_sorted", buttons);
+    }
+
+    public static String getHomeButtonsSorted(String defaultValue) {
+        return Prefers.getString("home_buttons_sorted", defaultValue);
+    }
+
+    public static boolean isHomeHistory() {
+        return Prefers.getBoolean("home_history", true);
+    }
+
+    public static void putHomeHistory(boolean show) {
+        Prefers.put("home_history", show);
+    }
+
+    public static void putConfigCache(int key) {
+        Prefers.put("config_cache", key);
+    }
+
+    public static int getConfigCache() {
+        return Math.min(Prefers.getInt("config_cache", 0), 8);
     }
 
 }
