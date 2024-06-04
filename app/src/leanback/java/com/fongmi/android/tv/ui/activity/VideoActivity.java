@@ -145,7 +145,6 @@ public class VideoActivity extends BaseActivity implements CustomKeyDownVod.List
     private boolean initAuto;
     private boolean autoMode;
     private boolean useParse;
-    private int currentFlag;
     private int toggleCount;
     private int groupSize;
     private Runnable mR1;
@@ -250,11 +249,16 @@ public class VideoActivity extends BaseActivity implements CustomKeyDownVod.List
     }
 
     private Flag getFlag() {
-        return (Flag) mFlagAdapter.get(mBinding.flag.getSelectedPosition());
+        return (Flag) mFlagAdapter.get(getFlagPosition());
     }
 
     private Episode getEpisode() {
         return (Episode) mEpisodeAdapter.get(getEpisodePosition());
+    }
+
+    private int getFlagPosition() {
+        for (int i = 0; i < mFlagAdapter.size(); i++) if (((Flag) mFlagAdapter.get(i)).isActivated()) return i;
+        return 0;
     }
 
     private int getEpisodePosition() {
@@ -315,7 +319,7 @@ public class VideoActivity extends BaseActivity implements CustomKeyDownVod.List
     protected void initView() {
         mKeyDown = CustomKeyDownVod.create(this, mBinding.video);
         mFrameParams = mBinding.video.getLayoutParams();
-        mClock = Clock.create(mBinding.display.time);
+        mClock = Clock.create(mBinding.display.clock);
         mDanmakuContext = DanmakuContext.create();
         mPlayers = new Players().init(this);
         mBroken = new ArrayList<>();
@@ -345,14 +349,14 @@ public class VideoActivity extends BaseActivity implements CustomKeyDownVod.List
         mBinding.control.text.setOnClickListener(this::onTrack);
         mBinding.control.audio.setOnClickListener(this::onTrack);
         mBinding.control.video.setOnClickListener(this::onTrack);
-        mBinding.control.text.setAddListener(this::onTextAdd);
-        mBinding.control.text.setSubListener(this::onTextSub);
-        mBinding.control.speed.setAddListener(this::onSpeedAdd);
-        mBinding.control.speed.setSubListener(this::onSpeedSub);
-        mBinding.control.ending.setAddListener(this::onEndingAdd);
-        mBinding.control.ending.setSubListener(this::onEndingSub);
-        mBinding.control.opening.setAddListener(this::onOpeningAdd);
-        mBinding.control.opening.setSubListener(this::onOpeningSub);
+        mBinding.control.text.setUpListener(this::onTextAdd);
+        mBinding.control.text.setDownListener(this::onTextSub);
+        mBinding.control.speed.setUpListener(this::onSpeedAdd);
+        mBinding.control.speed.setDownListener(this::onSpeedSub);
+        mBinding.control.ending.setUpListener(this::onEndingAdd);
+        mBinding.control.ending.setDownListener(this::onEndingSub);
+        mBinding.control.opening.setUpListener(this::onOpeningAdd);
+        mBinding.control.opening.setDownListener(this::onOpeningSub);
         mBinding.control.loop.setOnClickListener(view -> onLoop());
         mBinding.control.danmu.setOnClickListener(view -> onDanmu());
         mBinding.control.next.setOnClickListener(view -> checkNext());
@@ -491,8 +495,10 @@ public class VideoActivity extends BaseActivity implements CustomKeyDownVod.List
     private void setPlayerView() {
         getIjk().setPlayer(mPlayers.getPlayer());
         mBinding.control.player.setText(mPlayers.getPlayerText());
+        mBinding.control.speed.setEnabled(mPlayers.canAdjustSpeed());
         getExo().setVisibility(mPlayers.isExo() ? View.VISIBLE : View.GONE);
         getIjk().setVisibility(mPlayers.isIjk() ? View.VISIBLE : View.GONE);
+        mBinding.control.speed.setText(mPlayers.setSpeed(mHistory.getSpeed()));
     }
 
     private void setDecodeView() {
@@ -699,13 +705,12 @@ public class VideoActivity extends BaseActivity implements CustomKeyDownVod.List
     }
 
     public void setEpisodeActivated(Episode item) {
+        int flagPosition = getFlagPosition();
         if (shouldEnterFullscreen(item)) return;
-        setCurrentFlag(mBinding.flag.getSelectedPosition());
-        for (int i = 0; i < mFlagAdapter.size(); i++) ((Flag) mFlagAdapter.get(i)).toggle(getCurrentFlag() == i, item);
+        if (isFullscreen()) Notify.show(getString(R.string.play_ready, item.getName()));
+        for (int i = 0; i < mFlagAdapter.size(); i++) ((Flag) mFlagAdapter.get(i)).toggle(flagPosition == i, item);
         setEpisodeSelectedPosition(getEpisodePosition());
         notifyItemChanged(getEpisodeView(), mEpisodeAdapter);
-        if (mEpisodeAdapter.size() == 0) return;
-        if (isFullscreen()) Notify.show(getString(R.string.play_ready, item.getName()));
         onRefresh();
     }
 
@@ -779,10 +784,10 @@ public class VideoActivity extends BaseActivity implements CustomKeyDownVod.List
     }
 
     private void showDisplayInfo() {
-        mBinding.display.time.setVisibility(Setting.isDisplayTime() || isVisible(mBinding.widget.info)  ? View.VISIBLE : View.GONE);
+        mBinding.display.clock.setVisibility(Setting.isDisplayTime() || isVisible(mBinding.widget.info)  ? View.VISIBLE : View.GONE);
         mBinding.display.netspeed.setVisibility(Setting.isDisplaySpeed() && !isVisible(mBinding.control.getRoot()) ? View.VISIBLE : View.GONE);
         mBinding.display.duration.setVisibility(Setting.isDisplayDuration() && !isVisible(mBinding.control.getRoot()) ? View.VISIBLE : View.GONE);
-        mBinding.display.progress.setVisibility(Setting.isDisplayMiniProgress() && !isVisible(mBinding.control.getRoot()) ? View.VISIBLE : View.GONE);
+        mBinding.display.progress.setVisibility(Setting.isDisplayMiniProgress() && !isVisible(mBinding.control.getRoot()) && (mPlayers.getDuration() > 60000) ? View.VISIBLE : View.GONE);
     }
 
     private void onTimeChangeDisplaySpeed() {
@@ -790,7 +795,7 @@ public class VideoActivity extends BaseActivity implements CustomKeyDownVod.List
         long position = mPlayers.getPosition();
         if (Setting.isDisplaySpeed() && visible) Traffic.setSpeed(mBinding.display.netspeed);
         if (Setting.isDisplayDuration() && visible && position > 0) mBinding.display.duration.setText(mPlayers.getPositionTime(0) + "/" + mPlayers.getDurationTime());
-        if (Setting.isDisplayMiniProgress() && visible && position > 0) mBinding.display.progress.setProgress((int)(position * 100 / mPlayers.getDuration()));
+        if (Setting.isDisplayMiniProgress() && visible && position > 0 && (mPlayers.getDuration() > 60000)) mBinding.display.progress.setProgress((int)(position * 100 / mPlayers.getDuration()));
         showDisplayInfo();
     }
 
@@ -824,7 +829,7 @@ public class VideoActivity extends BaseActivity implements CustomKeyDownVod.List
         mBinding.video.requestFocus();
         mBinding.video.setForeground(null);
         mBinding.video.setLayoutParams(new RelativeLayout.LayoutParams(RelativeLayout.LayoutParams.MATCH_PARENT, RelativeLayout.LayoutParams.MATCH_PARENT));
-        mBinding.flag.setSelectedPosition(getCurrentFlag());
+        mBinding.flag.setSelectedPosition(getFlagPosition());
         mDanmakuContext.setScaleTextSize(1.2f * Setting.getDanmuSize());
         setSubtitle(Setting.getSubtitle());
         mKeyDown.setFull(true);
@@ -1042,7 +1047,7 @@ public class VideoActivity extends BaseActivity implements CustomKeyDownVod.List
     }
 
     private void onTrack(View view) {
-        TrackDialog.create().player(mPlayers).chooser(this).type(Integer.parseInt(view.getTag().toString())).show(this);
+        TrackDialog.create().player(mPlayers).chooser(this).vod(true).type(Integer.parseInt(view.getTag().toString())).show(this);
         hideControl();
     }
 
@@ -1222,7 +1227,6 @@ public class VideoActivity extends BaseActivity implements CustomKeyDownVod.List
         if (Setting.isIncognito() && mHistory.getKey().equals(getHistoryKey())) mHistory.delete();
         mBinding.control.opening.setText(mHistory.getOpening() == 0 ? getString(R.string.play_op) : mPlayers.stringToTime(mHistory.getOpening()));
         mBinding.control.ending.setText(mHistory.getEnding() == 0 ? getString(R.string.play_ed) : mPlayers.stringToTime(mHistory.getEnding()));
-        mBinding.control.speed.setText(mPlayers.setSpeed(mHistory.getSpeed()));
         mPlayers.setPlayer(getPlayer());
         setScale(getScale());
         setPlayerView();
@@ -1403,6 +1407,7 @@ public class VideoActivity extends BaseActivity implements CustomKeyDownVod.List
     }
 
     private void onError(ErrorEvent event) {
+        Track.delete(getHistoryKey());
         showError(event.getMsg());
         mClock.setCallback(null);
         mPlayers.stop();
@@ -1431,7 +1436,7 @@ public class VideoActivity extends BaseActivity implements CustomKeyDownVod.List
     }
 
     private void checkFlag() {
-        int position = isGone(mBinding.flag) ? -1 : mBinding.flag.getSelectedPosition();
+        int position = isGone(mBinding.flag) ? -1 : getFlagPosition();
         if (position == mFlagAdapter.size() - 1) checkSearch(false);
         else nextFlag(position);
     }
@@ -1582,14 +1587,6 @@ public class VideoActivity extends BaseActivity implements CustomKeyDownVod.List
         this.useParse = useParse;
     }
 
-    public int getCurrentFlag() {
-        return currentFlag;
-    }
-
-    public void setCurrentFlag(int currentFlag) {
-        this.currentFlag = currentFlag;
-    }
-
     public int getToggleCount() {
         return toggleCount;
     }
@@ -1669,15 +1666,15 @@ public class VideoActivity extends BaseActivity implements CustomKeyDownVod.List
 
     @Override
     public void onSeekTo(int time) {
-        mKeyDown.resetTime();
         mPlayers.seekTo(time);
+        mKeyDown.resetTime();
         showProgress();
         onPlay();
     }
 
     @Override
     public void onSpeedUp() {
-        if (!mPlayers.isPlaying()) return;
+        if (!mPlayers.isPlaying() || !mPlayers.canAdjustSpeed()) return;
         mBinding.control.speed.setText(mPlayers.setSpeed(mPlayers.getSpeed() < 3 ? 3 : 5));
         mBinding.widget.speed.startAnimation(ResUtil.getAnim(R.anim.forward));
         mBinding.widget.speed.setVisibility(View.VISIBLE);
@@ -1700,6 +1697,7 @@ public class VideoActivity extends BaseActivity implements CustomKeyDownVod.List
 
     @Override
     public void onKeyDown() {
+        showInfo();
         showControl(getFocus2());
     }
 

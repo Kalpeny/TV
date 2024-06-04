@@ -107,6 +107,7 @@ import org.greenrobot.eventbus.ThreadMode;
 
 import java.io.File;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
@@ -310,7 +311,7 @@ public class VideoActivity extends BaseActivity implements Clock.Callback, Custo
         mObserveSearch = this::setSearch;
         mDialogs = new ArrayList<>();
         mBroken = new ArrayList<>();
-        mClock = Clock.create(mBinding.display.time);
+        mClock = Clock.create(Arrays.asList(mBinding.display.clock, mBinding.control.time));
         mR0 = this::stopService;
         mR1 = this::hideControl;
         mR2 = this::setTraffic;
@@ -397,8 +398,10 @@ public class VideoActivity extends BaseActivity implements Clock.Callback, Custo
     private void setPlayerView() {
         getIjk().setPlayer(mPlayers.getPlayer());
         mBinding.control.action.player.setText(mPlayers.getPlayerText());
+        mBinding.control.action.speed.setEnabled(mPlayers.canAdjustSpeed());
         getExo().setVisibility(mPlayers.isExo() ? View.VISIBLE : View.GONE);
         getIjk().setVisibility(mPlayers.isIjk() ? View.VISIBLE : View.GONE);
+        mBinding.control.action.speed.setText(mPlayers.setSpeed(mHistory.getSpeed()));
         if (mControlDialog != null && mControlDialog.isVisible()) mControlDialog.updatePlayer();
     }
 
@@ -804,7 +807,7 @@ public class VideoActivity extends BaseActivity implements Clock.Callback, Custo
     }
 
     private void onTrack(View view) {
-        TrackDialog.create().player(mPlayers).type(Integer.parseInt(view.getTag().toString())).show(this);
+        TrackDialog.create().player(mPlayers).vod(true).type(Integer.parseInt(view.getTag().toString())).show(this);
         hideControl();
     }
 
@@ -936,10 +939,10 @@ public class VideoActivity extends BaseActivity implements Clock.Callback, Custo
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N && isInPictureInPictureMode()) pictureMode = true;
         boolean controlVisible = isVisible(mBinding.control.getRoot());
         boolean visible = (!controlVisible || isLock()) && !pictureMode;
-        mBinding.display.time.setVisibility(Setting.isDisplayTime() && visible  ? View.VISIBLE : View.GONE);
+        mBinding.display.clock.setVisibility(Setting.isDisplayTime() && visible  ? View.VISIBLE : View.GONE);
         mBinding.display.netspeed.setVisibility(Setting.isDisplaySpeed() && visible ? View.VISIBLE : View.GONE);
         mBinding.display.duration.setVisibility(Setting.isDisplayDuration() && visible ? View.VISIBLE : View.GONE);
-        mBinding.display.progress.setVisibility(Setting.isDisplayMiniProgress() && visible ? View.VISIBLE : View.GONE);
+        mBinding.display.progress.setVisibility(Setting.isDisplayMiniProgress() && visible && (mPlayers.getDuration() > 60000) ? View.VISIBLE : View.GONE);
     }
 
     private void onTimeChangeDisplaySpeed() {
@@ -948,7 +951,7 @@ public class VideoActivity extends BaseActivity implements Clock.Callback, Custo
         long position = mPlayers.getPosition();
         if (Setting.isDisplaySpeed() && visible) Traffic.setSpeed(mBinding.display.netspeed);
         if (Setting.isDisplayDuration() && visible && position > 0) mBinding.display.duration.setText(mPlayers.getPositionTime(0) + "/" + mPlayers.getDurationTime());
-        if (Setting.isDisplayMiniProgress() && visible && position > 0) mBinding.display.progress.setProgress((int)(position * 100 / mPlayers.getDuration()));
+        if (Setting.isDisplayMiniProgress() && visible && position > 0 && (mPlayers.getDuration() > 60000)) mBinding.display.progress.setProgress((int)(position * 100 / mPlayers.getDuration()));
         showDisplayInfo();
     }
 
@@ -1029,6 +1032,7 @@ public class VideoActivity extends BaseActivity implements Clock.Callback, Custo
         mBinding.control.danmu.setVisibility(isLock() || !mBinding.danmaku.isPrepared() ? View.GONE : View.VISIBLE);
         mBinding.control.danmuSetting.setVisibility(isLock() || !Setting.isDanmuLoad() || !isVisible(mBinding.danmaku) ? View.GONE : View.VISIBLE);
         mBinding.control.setting.setVisibility(mHistory == null || isFullscreen() ? View.GONE : View.VISIBLE);
+        mBinding.control.batteryInfo.setVisibility(isFullscreen() ? View.VISIBLE : View.GONE);
         mBinding.control.right.rotate.setVisibility(isFullscreen() && !isLock() ? View.VISIBLE : View.GONE);
         mBinding.control.keep.setVisibility(mHistory == null ? View.GONE : View.VISIBLE);
         mBinding.control.right.back.setVisibility(isFullscreen() && !isLock() ? View.VISIBLE : View.GONE);
@@ -1043,6 +1047,7 @@ public class VideoActivity extends BaseActivity implements Clock.Callback, Custo
         mBinding.control.getRoot().setVisibility(View.VISIBLE);
         showDisplayInfo();
         checkPlayImg(mPlayers.isPlaying());
+        checkBatteryImg();
         setR1Callback();
     }
 
@@ -1126,7 +1131,6 @@ public class VideoActivity extends BaseActivity implements Clock.Callback, Custo
         if (Setting.isIncognito() && mHistory.getKey().equals(getHistoryKey())) mHistory.delete();
         mBinding.control.action.opening.setText(mHistory.getOpening() == 0 ? getString(R.string.play_op) : mPlayers.stringToTime(mHistory.getOpening()));
         mBinding.control.action.ending.setText(mHistory.getEnding() == 0 ? getString(R.string.play_ed) : mPlayers.stringToTime(mHistory.getEnding()));
-        mBinding.control.action.speed.setText(mPlayers.setSpeed(mHistory.getSpeed()));
         mPlayers.setPlayer(getPlayer());
         setScale(getScale());
         setPlayerView();
@@ -1171,6 +1175,16 @@ public class VideoActivity extends BaseActivity implements Clock.Callback, Custo
 
     private void checkDanmuImg() {
         mBinding.control.danmu.setImageResource(Setting.isDanmu() ? R.drawable.ic_control_danmu_on : R.drawable.ic_control_danmu_off);
+    }
+
+    private void checkBatteryImg() {
+        int batteryLevel = Util.batteryLevel();
+        int resId = R.drawable.ic_battery_00;
+        if (batteryLevel >= 90) resId = R.drawable.ic_battery_full;
+        else if (batteryLevel >= 60) resId = R.drawable.ic_battery_75;
+        else if (batteryLevel >= 40) resId = R.drawable.ic_battery_50;
+        else if (batteryLevel >= 10) resId = R.drawable.ic_battery_25;
+        mBinding.control.battery.setImageResource(resId);
     }
 
     private void createKeep() {
@@ -1340,6 +1354,7 @@ public class VideoActivity extends BaseActivity implements Clock.Callback, Custo
 
     private void onError(ErrorEvent event) {
         mBinding.swipeLayout.setEnabled(true);
+        Track.delete(getHistoryKey());
         showError(event.getMsg());
         mClock.setCallback(null);
         mPlayers.stop();
@@ -1586,7 +1601,7 @@ public class VideoActivity extends BaseActivity implements Clock.Callback, Custo
 
     @Override
     public void onSpeedUp() {
-        if (!mPlayers.isPlaying()) return;
+        if (!mPlayers.isPlaying() || !mPlayers.canAdjustSpeed()) return;
         mBinding.control.action.speed.setText(mPlayers.setSpeed(mPlayers.getSpeed() < 3 ? 3 : 5));
         mBinding.widget.speed.startAnimation(ResUtil.getAnim(R.anim.forward));
         mBinding.widget.speed.setVisibility(View.VISIBLE);
@@ -1630,8 +1645,8 @@ public class VideoActivity extends BaseActivity implements Clock.Callback, Custo
     @Override
     public void onSeek(int time) {
         mBinding.widget.action.setImageResource(time > 0 ? R.drawable.ic_widget_forward : R.drawable.ic_widget_rewind);
-        mBinding.widget.seek.setVisibility(View.VISIBLE);
         mBinding.widget.time.setText(mPlayers.getPositionTime(time));
+        mBinding.widget.seek.setVisibility(View.VISIBLE);
         hideProgress();
     }
 
